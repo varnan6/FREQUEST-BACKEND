@@ -1,0 +1,40 @@
+generator client {
+provider = "prisma-client-js"
+}
+
+
+datasource db {
+provider = "postgresql"
+url = env("DATABASE_URL")
+}
+
+
+model User {
+id String @id @default(cuid())
+email String @unique
+passwordHash String
+role String @default("organizer")
+createdAt DateTime @default(now())
+}
+
+
+model Player {
+id String @id @default(cuid())
+name String
+score Int @default(0)
+streak Int @default(0)
+status String @default("offline") // playing / syncing / offline
+createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+histories ScoreHistory[]
+}
+
+
+model ScoreHistory {
+id String @id @default(cuid())
+player Player @relation(fields: [playerId], references: [id])
+playerId String
+delta Int
+reason String?
+createdAt DateTime @default(now())
+}
