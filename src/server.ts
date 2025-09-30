@@ -1,23 +1,50 @@
-import app from './app';
-import dotenv from 'dotenv';
-import prisma from './prismaSchema';
+import 'dotenv/config';
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import { startGame, addPlayer, removePlayer, updatePlayerFrequency } from './gameManager';
 
+import authRoutes from './routes/auth';
+import playersRoutes from './routes/players';
+import leaderboardRoutes from './routes/leaderboard';
 
-dotenv.config();
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:5173", // Your React app's URL
+    methods: ["GET", "POST"]
+  }
+});
 
+app.use(cors());
+app.use(express.json());
 
-const PORT = process.env.PORT || 4000;
+app.use('/api/auth', authRoutes);
+app.use('/api/players', playersRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 
+io.on('connection', (socket) => {
+  console.log(`🔌 New client connected: ${socket.id}`);
 
-const start = async () => {
-try {
-await prisma.$connect();
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
-} catch (err) {
-console.error('Failed to start server', err);
-process.exit(1);
-}
-};
+  socket.on('playerJoin', (playerId: string) => {
+    console.log(`BACKEND: Received 'playerJoin' event for player ID: ${playerId}`)
+    addPlayer(socket, playerId);
+  });
 
+  socket.on('playerUpdate', (data: { frequency: number }) => {
+      console.log(`BACKEND: Received frequency update from [${socket.id}] --> ${data.frequency}`);
+    updatePlayerFrequency(socket, data.frequency);
+  });
 
-start();
+  socket.on('disconnect', () => {
+    removePlayer(socket);
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server is listening on port ${PORT}`);
+  startGame(io);
+});
