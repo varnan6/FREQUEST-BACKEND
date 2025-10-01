@@ -1,43 +1,27 @@
 import { Router } from 'express';
 import prisma from '../prismaSchema';
-import { hash, compare } from '../utils/hash';
 import jwt from 'jsonwebtoken';
-import { registerSchema, loginSchema } from '../utils/validate';
+import { z } from 'zod';
 
 const router = Router();
 
-router.post('/register', async (req, res) => {
-  try {
-    const parsed = registerSchema.parse(req.body);
-    const existing = await prisma.user.findUnique({ where: { email: parsed.email } });
-    if (existing) return res.status(400).json({ message: 'Email already used' });
-
-    const passwordHash = await hash(parsed.password);
-    const user = await prisma.user.create({ data: { email: parsed.email, passwordHash } });
-    
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-    res.json({ token, user: { id: user.id, email: user.email, role: user.role, player: null } });
-  } catch (err: any) {
-    res.status(400).json({ message: err.message });
-  }
+const entrySchema = z.object({
+  name: z.string().min(3, "Name must be at least 3 characters").max(20, "Name cannot exceed 20 characters"),
 });
 
-router.post('/login', async (req, res) => {
+router.post('/enter', async (req, res) => {
   try {
-    const parsed = loginSchema.parse(req.body);
-    const user = await prisma.user.findUnique({ 
-      where: { email: parsed.email },
-      include: { player: true },
-    });
-    if (!user) return res.status(400).json({ message: 'Invalid credentials' });
+    const parsed = entrySchema.parse(req.body);
 
-    const ok = await compare(parsed.password, user.passwordHash);
-    if (!ok) return res.status(400).json({ message: 'Invalid credentials' });
-    
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, process.env.JWT_SECRET!, { expiresIn: '7d' });
-    
-    const { passwordHash, ...userWithoutPassword } = user;
-    res.json({ token, user: userWithoutPassword });
+    const player = await prisma.player.upsert({
+      where: { name: parsed.name },
+      update: {},
+      create: { name: parsed.name },
+    });
+
+    const token = jwt.sign({ id: player.id, name: player.name }, process.env.JWT_SECRET!, { expiresIn: '7d' });
+
+    res.json({ token, player });
   } catch (err: any) {
     res.status(400).json({ message: err.message });
   }

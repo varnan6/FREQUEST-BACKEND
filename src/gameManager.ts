@@ -1,12 +1,9 @@
 import { Server, Socket } from 'socket.io';
-import prisma from './prismaSchema';
+import prisma from "./prismaSchema"
+
 interface GamePlayer {
-  id: string;
-  name: string;
-  score: number;
-  streak: number;
-  currentFrequency: number;
-  isMatched: boolean;
+  id: string; name: string; score: number;
+  streak: number; currentFrequency: number; isMatched: boolean;
 }
 
 const gameState = {
@@ -57,17 +54,13 @@ export function startGame(io: Server) {
 
 export async function addPlayer(socket: Socket, playerId: string) {
   const dbPlayer = await prisma.player.findUnique({ where: { id: playerId } });
-  if (!dbPlayer) return socket.emit('error', 'Player not found');
+  if (!dbPlayer) return;
   
   await prisma.player.update({ where: { id: playerId }, data: { status: 'playing' } });
 
   const newPlayer: GamePlayer = {
-    id: dbPlayer.id,
-    name: dbPlayer.name,
-    score: dbPlayer.score,
-    streak: dbPlayer.streak,
-    currentFrequency: 440,
-    isMatched: false,
+    id: dbPlayer.id, name: dbPlayer.name, score: dbPlayer.score,
+    streak: dbPlayer.streak, currentFrequency: 440, isMatched: false,
   };
   
   gameState.players.set(socket.id, newPlayer);
@@ -89,9 +82,6 @@ export async function removePlayer(socket: Socket) {
 export function updatePlayerFrequency(socket: Socket, frequency: number) {
   const player = gameState.players.get(socket.id);
   if (player) {
-    console.log(`GAMESTATE: Updating ${player.name}'s frequency to ${frequency}`);
     player.currentFrequency = frequency;
-  } else {
-    console.log(`GAMESTATE: ERROR! Could not find player with socket ID [${socket.id}] to update frequency.`);
   }
 }

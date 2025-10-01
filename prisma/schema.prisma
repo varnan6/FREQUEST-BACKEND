@@ -7,37 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  role         String   @default("player")
-  createdAt    DateTime @default(now())
-
-  player Player? // <-- ADDED: This links a User to one Player profile.
-}
-
 model Player {
   id        String   @id @default(cuid())
-  name      String
+  name      String   @unique
   score     Int      @default(0)
   streak    Int      @default(0)
-  status    String   @default("offline") // playing / syncing / offline
+  status    String   @default("offline")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  histories ScoreHistory[]
-
-  // --- ADDED: These fields link a Player back to one User ---
-  user   User?    @relation(fields: [userId], references: [id])
-  userId String?  @unique // @unique makes this a one-to-one relationship
-}
-
-model ScoreHistory {
-  id        String   @id @default(cuid())
-  player    Player   @relation(fields: [playerId], references: [id])
-  playerId  String
-  delta     Int
-  reason    String?
-  createdAt DateTime @default(now())
 }
